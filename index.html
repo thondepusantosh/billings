@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feed Bill Calculator</title>
+<style>
+  /* ── System fonts only – no external requests ── */
+  :root {
+    --green-dark: #0e2e2e;
+    --green:      #1a5c5c;
+    --green-mid:  #144a4a;
+    --green-lite: #f0f7f5;
+    --green-bdr:  #c3e0d8;
+    --gold:       #e8d48b;
+    --gold-dark:  #dfc87a;
+    --bg:         #f4f3ef;
+    --white:      #ffffff;
+    --text:       #222222;
+    --muted:      #888888;
+    --border:     rgba(0,0,0,0.09);
+    --red:        #e05050;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* ── Layout ── */
+  .app { min-height: 100vh; position: relative; overflow-x: hidden; }
+
+  .orb {
+    position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+  .orb1 {
+    width: 280px; height: 280px; top: -70px; right: -60px;
+    background: conic-gradient(from 120deg,#1a5c5c,#c4611a,#8b2a2a,#d4853a,#1a5c5c);
+    opacity: .8;
+  }
+  .orb2 {
+    width: 340px; height: 340px; bottom: 100px; left: -120px;
+    background: conic-gradient(from 200deg,#0d3d3d,#c4611a,#8b2a2a,#1a5c5c,#0d3d3d);
+    opacity: .65;
+  }
+
+  .inner {
+    position: relative; z-index: 2;
+    max-width: 640px; margin: 0 auto;
+    padding: 1.5rem 1.1rem 5rem;
+  }
+
+  /* ── Brand ── */
+  .brand { text-align: center; margin-bottom: 1.8rem; }
+  .brand-tag {
+    font-size: .65rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: .3rem;
+  }
+  .brand-name {
+    font-size: 2.6rem; font-weight: 700; color: var(--text);
+    line-height: 1; letter-spacing: -.02em;
+  }
+  .brand-name em { font-style: italic; color: var(--green); }
+  .brand-desc { font-size: .74rem; color: #bbb; margin-top: .25rem; letter-spacing: .05em; }
+
+  /* ── Card ── */
+  .card {
+    background: rgba(255,255,255,.92);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,.98);
+    padding: 1.4rem;
+    margin-bottom: .85rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.04);
+    transition: box-shadow .2s;
+  }
+  .card:hover { box-shadow: 0 6px 28px rgba(0,0,0,.07); }
+
+  /* ── Section label ── */
+  .sec-label {
+    font-size: .6rem; letter-spacing: .18em; text-transform: uppercase;
+    color: #bbb; margin-bottom: .85rem;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .sec-label::after { content:''; flex:1; height:.5px; background: rgba(0,0,0,.09); }
+  .step-num {
+    background: var(--green); color: #fff;
+    width: 17px; height: 17px; border-radius: 50%;
+    font-size: .58rem; display: inline-flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  /* ── Form elements ── */
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .fl { display: flex; flex-direction: column; gap: .3rem; }
+  .fl-lbl { font-size: .63rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .inp {
+    width: 100%; padding: .7rem .88rem;
+    border: 1.5px solid var(--border); border-radius: 11px;
+    font-family: inherit; font-size: .9rem; color: var(--text);
+    background: #fafaf8; transition: all .15s; outline: none;
+  }
+  .inp:focus { border-color: var(--green); background: var(--white); box-shadow: 0 0 0 3px rgba(26,92,92,.07); }
+  input[type=date].inp { color: #555; }
+
+  /* ── Product list ── */
+  .prod-list { display: flex; flex-direction: column; gap: .45rem; }
+  .pb {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .72rem 1rem;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    background: #fafaf8; cursor: pointer;
+    font-family: inherit; transition: all .15s; text-align: left; width: 100%;
+  }
+  .pb:hover { border-color: var(--green); background: var(--green-lite); }
+  .pb.active { border-color: var(--green); background: var(--green); }
+  .pb-left { display: flex; align-items: center; gap: .75rem; }
+  .pb-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    border: 2px solid #c0c0b8; flex-shrink: 0; transition: all .15s;
+  }
+  .pb.active .pb-dot { background: var(--gold); border-color: var(--gold); }
+  .pb-code { font-size: .88rem; font-weight: 600; color: var(--text); transition: color .15s; }
+  .pb.active .pb-code { color: var(--white); }
+  .pb-label { font-size: .7rem; color: var(--muted); margin-top: 1px; transition: color .15s; }
+  .pb.active .pb-label { color: rgba(255,255,255,.6); }
+  .pb-ptag {
+    font-size: .78rem; font-weight: 500; color: var(--green);
+    background: #e8f5f0; border-radius: 7px; padding: .22rem .6rem;
+    transition: all .15s; white-space: nowrap;
+  }
+  .pb.active .pb-ptag { background: rgba(255,255,255,.15); color: var(--gold); }
+
+  /* ── Price block ── */
+  .price-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .6rem; }
+  .price-box {
+    flex: 1; background: var(--green-lite);
+    border: 1.5px solid var(--green-bdr); border-radius: 11px;
+    padding: .6rem .85rem; display: flex; align-items: center; justify-content: space-between;
+  }
+  .price-lbl { font-size: .6rem; color: #6b9e90; text-transform: uppercase; letter-spacing: .1em; }
+  .price-val { font-size: 1.5rem; font-weight: 700; color: var(--green); }
+  .edit-btn {
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 9px; padding: .42rem .75rem;
+    font-family: inherit; font-size: .7rem; cursor: pointer;
+    color: #555; white-space: nowrap; transition: all .15s;
+  }
+  .edit-btn:hover { border-color: var(--green); color: var(--green); }
+
+  .ep-panel {
+    background: #fafaf7; border-radius: 11px;
+    border: 1px solid var(--border); padding: .85rem;
+    display: none; margin-top: .5rem;
+  }
+  .ep-panel.open { display: block; }
+  .ep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+  .ep-item label { font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; display: block; margin-bottom: 2px; }
+  .ep-item input {
+    width: 100%; padding: .38rem .52rem;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: inherit; font-size: .8rem; color: var(--text);
+    background: var(--white); outline: none; transition: border-color .15s;
+  }
+  .ep-item input:focus { border-color: var(--green); }
+
+  /* ── Discount & bags ── */
+  .after-disc {
+    margin-top: .6rem; padding: .48rem .78rem;
+    background: #fff8ed; border-radius: 9px; border: 1px solid #f5d9a0;
+    display: none; justify-content: space-between; font-size: .77rem;
+  }
+  .after-disc span:first-child { color: #a07030; }
+  .after-disc span:last-child { font-weight: 600; color: #7a5010; }
+
+  .add-btn {
+    width: 100%; margin-top: .88rem; padding: .8rem;
+    background: var(--green); color: var(--white); border: none; border-radius: 12px;
+    font-family: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+    transition: all .18s; display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .add-btn:hover { background: var(--green-mid); transform: translateY(-1px); box-shadow: 0 5px 18px rgba(26,92,92,.25); }
+  .add-btn:active { transform: none; }
+  .add-btn:disabled { background: #b5cbcb; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ── Cart ── */
+  .cart-hd { display: flex; align-items: center; gap: .5rem; margin-bottom: .8rem; }
+  .cart-count {
+    background: var(--green); color: var(--white);
+    font-size: .6rem; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+  }
+  .clear-all {
+    margin-left: auto; font-size: .67rem; color: var(--red);
+    cursor: pointer; border: 1px solid rgba(224,80,80,.3);
+    border-radius: 7px; padding: 3px 8px; background: transparent; transition: all .15s;
+  }
+  .clear-all:hover { background: #fef0f0; }
+  .empty-cart { text-align: center; padding: 1.5rem; color: #ccc; font-size: .82rem; }
+
+  .cart-item {
+    display: flex; align-items: center; gap: .68rem;
+    padding: .68rem 0; border-bottom: .5px solid rgba(0,0,0,.07);
+  }
+  .cart-item:last-child { border-bottom: none; }
+  .ci-badge {
+    background: var(--green); color: var(--white);
+    border-radius: 8px; padding: .28rem .52rem;
+    font-size: .68rem; font-weight: 600; min-width: 52px; text-align: center; flex-shrink: 0;
+  }
+  .ci-info { flex: 1; }
+  .ci-top { display: flex; align-items: center; justify-content: space-between; }
+  .ci-name { font-size: .8rem; font-weight: 600; color: var(--text); }
+  .ci-amt { font-size: 1.05rem; font-weight: 700; color: var(--green); }
+  .ci-sub { font-size: .64rem; color: #bbb; margin-top: 1px; }
+  .del-btn {
+    background: none; border: 1.5px solid rgba(224,80,80,.3);
+    color: var(--red); border-radius: 8px; width: 28px; height: 28px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; transition: all .15s; flex-shrink: 0;
+  }
+  .del-btn:hover { background: #fef0f0; border-color: var(--red); }
+
+  /* ── Bill summary ── */
+  .bill-wrap {
+    background: linear-gradient(160deg, var(--green-dark) 0%, var(--green) 60%, #1d6a5c 100%);
+    border-radius: 20px; padding: 1.8rem; margin-bottom: .85rem;
+    position: relative; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(14,46,46,.35);
+  }
+  .bill-wrap::before {
+    content:''; position:absolute; top:-55px; right:-55px;
+    width:170px; height:170px; border-radius:50%; background:rgba(255,255,255,.04);
+  }
+  .bill-inner { position: relative; z-index: 1; }
+  .bill-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 1rem; padding-bottom: .95rem;
+    border-bottom: .5px solid rgba(255,255,255,.15);
+  }
+  .bill-cust { font-size: 1.55rem; font-weight: 700; color: var(--white); font-style: italic; }
+  .bill-sublbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.38); margin-top: .22rem; }
+  .bill-date-block { text-align: right; }
+  .bill-date-lbl { font-size: .58rem; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.38); }
+  .bill-date-val { font-size: .88rem; color: rgba(255,255,255,.82); margin-top: 2px; font-weight: 600; }
+
+  .bill-sec-lbl { font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.38); margin-bottom: .75rem; }
+
+  /* Table header */
+  .bill-thead {
+    display: grid; grid-template-columns: 1.4fr .9fr .5fr 1fr;
+    gap: 4px; padding: .25rem 0 .4rem;
+    border-bottom: .5px solid rgba(255,255,255,.22); margin-bottom: .1rem;
+  }
+  .bth { font-size: .58rem; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.4); }
+  .bth:not(:first-child) { text-align: right; }
+
+  .bill-rows { margin-bottom: .9rem; }
+  .bill-row {
+    display: grid; grid-template-columns: 1.4fr .9fr .5fr 1fr;
+    gap: 4px; padding: .38rem 0;
+    border-bottom: .5px solid rgba(255,255,255,.07); font-size: .8rem; align-items: center;
+  }
+  .bill-row:last-child { border-bottom: none; }
+  .brc { color: rgba(255,255,255,.55); text-align: right; }
+  .brc-code { color: rgba(255,255,255,.92); font-weight: 600; text-align: left; }
+  .brc-amt { color: rgba(255,255,255,.94); font-weight: 600; }
+
+  .bill-divider { border: none; border-top: .5px solid rgba(255,255,255,.2); margin: .8rem 0; }
+  .bill-total-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .bill-total-lbl { font-size: .66rem; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.45); }
+  .bill-total-val { font-size: 2.4rem; font-weight: 700; color: var(--gold); }
+
+  .bill-footer { margin-top: 1rem; padding-top: .75rem; border-top: .5px solid rgba(255,255,255,.1); text-align: center; font-size: .58rem; color: rgba(255,255,255,.28); letter-spacing: .12em; }
+
+  /* Save button */
+  .save-btn {
+    width: 100%; padding: .9rem;
+    background: var(--gold); color: #1a3a2a;
+    border: none; border-radius: 13px;
+    font-family: inherit; font-size: .92rem; font-weight: 700;
+    cursor: pointer; transition: all .18s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .save-btn:hover { background: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 5px 20px rgba(232,212,139,.4); }
+  .save-btn:active { transform: none; }
+  .save-btn:disabled { background: #d5d2b8; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="inner">
+
+    <!-- 1. Customer -->
+    <div class="card">
+      <div class="sec-label"><span class="step-num">1</span> Customer Details</div>
+      <div class="row2">
+        <div class="fl">
+          <div class="fl-lbl">Customer Name</div>
+          <input class="inp" type="text" id="custName" placeholder="Enter name" oninput="updateHeader()">
+        </div>
+        <div class="fl">
+          <div class="fl-lbl">Feed Date</div>
+          <input class="inp" type="date" id="feedDate" oninput="updateHeader()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Product -->
+    <div class="card">
+      <div class="sec-label"><span class="step-num">2</span> Select Product</div>
+      <div class="prod-list" id="prodList"></div>
+    </div>
+
+    <!-- 3. Price -->
+    <div class="card">
+      <div class="sec-label"><span class="step-num">3</span> Price per Bag</div>
+      <div class="price-row">
+        <div class="price-box">
+          <div>
+            <div class="price-lbl">Base Price</div>
+            <div class="price-val" id="priceDisplay">Select a product</div>
+          </div>
+        </div>
+        <button class="edit-btn" onclick="toggleEdit()">✏ Edit Prices</button>
+      </div>
+      <div class="ep-panel" id="editPanel">
+        <div class="ep-grid" id="editGrid"></div>
+      </div>
+    </div>
+
+    <!-- 4. Discount & Bags -->
+    <div class="card">
+      <div class="sec-label"><span class="step-num">4</span> Discount &amp; Quantity</div>
+      <div class="row2">
+        <div class="fl">
+          <div class="fl-lbl">Discount (₹ per bag)</div>
+          <input class="inp" type="number" id="discInp" placeholder="0.00" min="0" oninput="computePreview()">
+        </div>
+        <div class="fl">
+          <div class="fl-lbl">Number of Bags</div>
+          <input class="inp" type="number" id="bagsInp" placeholder="0" min="1" oninput="computePreview()">
+        </div>
+      </div>
+      <div class="after-disc" id="afterDisc">
+        <span>Net rate after discount</span>
+        <span id="afterDiscVal"></span>
+      </div>
+      <button class="add-btn" id="addBtn" onclick="addToCart()" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add to Cart
+      </button>
+    </div>
+
+    <!-- 5. Cart -->
+    <div class="card">
+      <div class="cart-hd">
+        <div class="sec-label" style="margin:0;flex:1"><span class="step-num">5</span> Your Cart</div>
+        <span class="cart-count" id="cartCount">0 items</span>
+        <button class="clear-all" onclick="clearAll()">Clear all</button>
+      </div>
+      <div id="cartBody"><div class="empty-cart">No products added yet</div></div>
+    </div>
+
+    <!-- Bill -->
+    <div id="billSection" style="display:none">
+      <div class="bill-wrap" id="billSnapshot">
+        <div class="bill-inner">
+          <div class="bill-top">
+            <div>
+              <div class="bill-cust" id="bCustName">Customer</div>
+              <div class="bill-sublbl">FEED BILL</div>
+            </div>
+            <div class="bill-date-block">
+              <div class="bill-date-lbl">Date</div>
+              <div class="bill-date-val" id="bDateVal">—</div>
+            </div>
+          </div>
+          <div class="bill-sec-lbl">Final Bill Summary</div>
+          <div class="bill-thead">
+            <span class="bth">Product</span>
+            <span class="bth">Net Rate</span>
+            <span class="bth">Bags</span>
+            <span class="bth">Amount</span>
+          </div>
+          <div class="bill-rows" id="billRows"></div>
+          <hr class="bill-divider">
+          <div class="bill-total-row">
+            <div class="bill-total-lbl">Total Amount</div>
+            <div class="bill-total-val" id="billTotal">₹0</div>
+          </div>
+          <div class="bill-footer">Feed Bill</div>
+        </div>
+      </div>
+      <button class="save-btn" id="saveBtn" onclick="saveBill()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Save Bill as Photo
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- html2canvas from CDN (needs internet once; works offline after browser cache) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const PRODUCTS = [
+  { code: 'BPSC',       label: 'Broiler Pre Starter'  },
+  { code: 'BSC',        label: 'Broiler Starter'       },
+  { code: 'BFP',        label: 'Broiler Finisher'      },
+  { code: 'BC35%',       label: 'Broiler Concentrate'   },
+  { code: 'STALL FEED', label: 'Stall Feed'            },
+  { code: 'LSC',        label: 'Layer Starter'         },
+  { code: 'LGC',        label: 'Layer Grower'          },
+  { code: 'LC',         label: 'Layer Concentrate'     },
+  { code: 'NKS',        label: 'Naatu Koli Starter'    },
+  { code: 'NKF',        label: 'Naatu Koli Finisher'   }
+];
+const DEF_PRICES = [1990, 1955, 1905, 2470, 1090, 1790, 1470, 1725, 1720, 1680];
+let prices   = [...DEF_PRICES];
+let selected = null;
+let editOpen = false;
+let cart     = [];
+let cid      = 0;
+
+const fmt = n => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, dd] = d.split('-');
+  return dd + '/' + m + '/' + y;
+}
+
+function init() {
+  // Set today's date
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('feedDate').value = today;
+  updateHeader();
+
+  // Build product list
+  const list = document.getElementById('prodList');
+  PRODUCTS.forEach(function(p, i) {
+    const b = document.createElement('button');
+    b.className = 'pb';
+    b.id = 'pb' + i;
+    b.innerHTML =
+      '<div class="pb-left">' +
+        '<div class="pb-dot"></div>' +
+        '<div>' +
+          '<div class="pb-code">' + p.code + '</div>' +
+          '<div class="pb-label">' + p.label + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pb-ptag" id="ptag' + i + '">' + fmt(prices[i]) + '</div>';
+    b.onclick = function() { selectProd(i); };
+    list.appendChild(b);
+  });
+
+  // Build edit grid
+  const eg = document.getElementById('editGrid');
+  PRODUCTS.forEach(function(p, i) {
+    const d = document.createElement('div');
+    d.className = 'ep-item';
+    d.innerHTML =
+      '<label>' + p.code + '</label>' +
+      '<input type="number" id="ep' + i + '" value="' + prices[i] + '" onchange="updatePrice(' + i + ', this.value)">';
+    eg.appendChild(d);
+  });
+}
+
+function updateHeader() {
+  const name = document.getElementById('custName').value.trim() || 'Customer';
+  document.getElementById('bCustName').textContent = name;
+  document.getElementById('bDateVal').textContent = fmtDate(document.getElementById('feedDate').value);
+}
+
+function selectProd(i) {
+  if (selected !== null) document.getElementById('pb' + selected).classList.remove('active');
+  selected = i;
+  document.getElementById('pb' + i).classList.add('active');
+  document.getElementById('priceDisplay').textContent = fmt(prices[i]);
+  computePreview();
+}
+
+function toggleEdit() {
+  editOpen = !editOpen;
+  document.getElementById('editPanel').className = 'ep-panel' + (editOpen ? ' open' : '');
+}
+
+function updatePrice(i, v) {
+  prices[i] = parseFloat(v) || 0;
+  const tag = document.getElementById('ptag' + i);
+  if (tag) tag.textContent = fmt(prices[i]);
+  if (selected === i) {
+    document.getElementById('priceDisplay').textContent = fmt(prices[i]);
+    computePreview();
+  }
+}
+
+function computePreview() {
+  const disc = parseFloat(document.getElementById('discInp').value) || 0;
+  const bags = parseFloat(document.getElementById('bagsInp').value) || 0;
+  const ab   = document.getElementById('addBtn');
+  const ad   = document.getElementById('afterDisc');
+  if (selected === null) { ab.disabled = true; return; }
+  const after = Math.max(0, prices[selected] - disc);
+  if (disc > 0) {
+    ad.style.display = 'flex';
+    document.getElementById('afterDiscVal').textContent = fmt(after) + ' / bag';
+  } else {
+    ad.style.display = 'none';
+  }
+  ab.disabled = !(bags >= 1);
+}
+
+function addToCart() {
+  if (selected === null) return;
+  const disc  = parseFloat(document.getElementById('discInp').value) || 0;
+  const bags  = parseInt(document.getElementById('bagsInp').value)   || 0;
+  if (bags < 1) return;
+  const base  = prices[selected];
+  const after = Math.max(0, base - disc);
+  const total = after * bags;
+  cart.push({ id: cid++, code: PRODUCTS[selected].code, label: PRODUCTS[selected].label, base, disc, after, bags, total });
+  renderCart();
+  document.getElementById('discInp').value = '';
+  document.getElementById('bagsInp').value = '';
+  document.getElementById('afterDisc').style.display = 'none';
+  document.getElementById('addBtn').disabled = true;
+}
+
+function renderCart() {
+  const body = document.getElementById('cartBody');
+  document.getElementById('cartCount').textContent = cart.length + ' item' + (cart.length !== 1 ? 's' : '');
+  if (cart.length === 0) {
+    body.innerHTML = '<div class="empty-cart">No products added yet</div>';
+    document.getElementById('billSection').style.display = 'none';
+    return;
+  }
+  body.innerHTML = '';
+  cart.forEach(function(item) {
+    const div = document.createElement('div');
+    div.className = 'cart-item';
+    const dt = item.disc > 0 ? fmt(item.disc) + ' off · ' : '';
+    div.innerHTML =
+      '<div class="ci-badge">' + item.code + '</div>' +
+      '<div class="ci-info">' +
+        '<div class="ci-top">' +
+          '<span class="ci-name">' + item.bags + ' bag' + (item.bags > 1 ? 's' : '') + '</span>' +
+          '<span class="ci-amt">' + fmt(item.total) + '</span>' +
+        '</div>' +
+        '<div class="ci-sub">' + dt + 'Net ' + fmt(item.after) + '/bag · ' + item.label + '</div>' +
+      '</div>' +
+      '<button class="del-btn" onclick="removeItem(' + item.id + ')">✕</button>';
+    body.appendChild(div);
+  });
+  renderBill();
+}
+
+function removeItem(id) { cart = cart.filter(function(c) { return c.id !== id; }); renderCart(); }
+function clearAll()     { cart = []; renderCart(); }
+
+function renderBill() {
+  if (cart.length === 0) { document.getElementById('billSection').style.display = 'none'; return; }
+  document.getElementById('billSection').style.display = 'block';
+  const rows = document.getElementById('billRows');
+  rows.innerHTML = '';
+  let grand = 0;
+  cart.forEach(function(item) {
+    grand += item.total;
+    const r = document.createElement('div');
+    r.className = 'bill-row';
+    r.innerHTML =
+      '<span class="brc brc-code">' + item.code + '</span>' +
+      '<span class="brc">' + fmt(item.after) + '</span>' +
+      '<span class="brc">' + item.bags + '</span>' +
+      '<span class="brc brc-amt">' + fmt(item.total) + '</span>';
+    rows.appendChild(r);
+  });
+  document.getElementById('billTotal').textContent = fmt(grand);
+}
+
+function saveBill() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  html2canvas(document.getElementById('billSnapshot'), {
+    scale: 3, backgroundColor: null, useCORS: true, logging: false
+  }).then(function(canvas) {
+    const name = document.getElementById('custName').value.trim() || 'customer';
+    const date = document.getElementById('feedDate').value || 'bill';
+    const link = document.createElement('a');
+    link.download = 'FeedBill_' + name + '_' + date + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save Bill as Photo';
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Save Bill as Photo';
+  });
+}
+
+// Boot
+init();
+</script>
+</body>
+</html>
